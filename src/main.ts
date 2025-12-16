@@ -1,10 +1,18 @@
 import { NestFactory } from '@nestjs/core';
-import { AppIndexModule } from './app.module';
+import { AppModule } from './app.module';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppIndexModule);
-
+  const app = await NestFactory.create(AppModule);
+  // 全局验证：确保请求数据符合 DTO 约束
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
   app.setGlobalPrefix('api');
-  await app.listen(process.env.PORT ?? 3003);
+  await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>新增 Item</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        background: #f5f7fb;
+        margin: 0;
+        padding: 0;
+      }
+      .page {
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        width: 320px;
+        padding: 32px;
+        background: #fff;
+        box-shadow: 2px 0 12px rgba(0, 0, 0, 0.06);
+      }
+      h1 {
+        margin-top: 0;
+        font-size: 20px;
+      }
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      label {
+        font-weight: 600;
+      }
+      input,
+      textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #d6d9e0;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+      button {
+        background: #1f7aec;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 12px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      button:hover {
+        background: #1668c7;
+      }
+      .preview {
+        flex: 1;
+        padding: 32px;
+        color: #4a5568;
+      }
+      .list {
+        margin-top: 24px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 12px;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 12px 14px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+      }
+      .card h3 {
+        margin: 0 0 6px;
+        font-size: 15px;
+        color: #111827;
+      }
+      .card p {
+        margin: 0;
+        font-size: 13px;
+        color: #4b5563;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      .card time {
+        display: block;
+        margin-top: 8px;
+        font-size: 12px;
+        color: #9ca3af;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .actions button {
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        border: none;
+      }
+      .tips {
+        font-size: 12px;
+        color: #6b7280;
+      }
+      .message {
+        margin-top: 10px;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="sidebar">
+        <h1>添加 Item</h1>
+        <div class="tips">提交后将调用 POST /api/items 进行保存。</div>
+        <form id="itemForm">
+          <div>
+            <label for="title">标题</label>
+            <input
+              id="title"
+              name="title"
+              placeholder="请输入标题"
+              required
+              maxlength="100"
+            />
+          </div>
+          <div>
+            <label for="content">内容</label>
+            <textarea
+              id="content"
+              name="content"
+              placeholder="请输入内容"
+              rows="5"
+              required
+              maxlength="1000"
+            ></textarea>
+          </div>
+          <button type="submit">保存</button>
+          <div class="message" id="message"></div>
+        </form>
+      </div>
+      <div class="preview">
+        <h2>接口</h2>
+        <p><code>POST /api/items</code> · <code>GET /api/items</code> · <code>DELETE /api/items/:id</code></p>
+        <pre>
+{
+  "title": "示例标题",
+  "content": "示例内容"
+}</pre
+        >
+        <div class="actions">
+          <button type="button" id="refreshBtn">刷新列表 (GET /api/items)</button>
+        </div>
+        <div id="list" class="list"></div>
+      </div>
+    </div>
+    <script>
+      const form = document.getElementById('itemForm');
+      const message = document.getElementById('message');
+      const list = document.getElementById('list');
+      const refreshBtn = document.getElementById('refreshBtn');
+
+      const renderList = (items) => {
+        if (!Array.isArray(items) || items.length === 0) {
+          list.innerHTML = '<div class="card"><p>暂无数据</p></div>';
+          return;
+        }
+        list.innerHTML = items
+          .map((item) => {
+            const created = item.createdAt
+              ? new Date(item.createdAt).toLocaleString()
+              : '';
+            return `
+              <div class="card">
+                <small>ID: ${item.id ?? ''}</small>
+                <h3>${item.title ?? ''}</h3>
+                <p>${item.content ?? ''}</p>
+                <time>${created}</time>
+                <div class="actions">
+                  <button type="button" data-id="${item.id}" class="delete-btn" style="background:#ef4444;color:#fff;">删除</button>
+                </div>
+              </div>
+            `;
+          })
+          .join('');
+        bindDeleteEvents();
+      };
+
+      const bindDeleteEvents = () => {
+        document.querySelectorAll('.delete-btn').forEach((btn) => {
+          btn.addEventListener('click', async (e) => {
+            const id = e.target.getAttribute('data-id');
+            if (!id) return;
+            if (!confirm('确认删除 ID ' + id + ' ?')) return;
+            try {
+              const res = await fetch('/api/items/' + id, { method: 'DELETE' });
+              const data = await res.json();
+              if (!res.ok) throw new Error(data?.message || '删除失败');
+              fetchList();
+            } catch (err) {
+              alert(err.message || '删除失败');
+            }
+          });
+        });
+      };
+
+      const fetchList = async () => {
+        list.innerHTML = '<div class="card"><p>加载中...</p></div>';
+        try {
+          const res = await fetch('/api/items');
+          const data = await res.json();
+          if (!res.ok) throw new Error(data?.message || '获取失败');
+          renderList(data);
+        } catch (err) {
+          list.innerHTML = `<div class="card"><p style="color:red;">${err.message || '获取失败'}</p></div>`;
+        }
+      };
+
+      refreshBtn.addEventListener('click', fetchList);
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        message.textContent = '提交中...';
+        const formData = new FormData(form);
+        const payload = {
+          title: formData.get('title'),
+          content: formData.get('content'),
+        };
+        try {
+          const res = await fetch('/api/items', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data?.message || '提交失败');
+          message.style.color = 'green';
+          message.textContent = '保存成功，ID: ' + (data.id ?? '');
+          form.reset();
+          fetchList();
+        } catch (err) {
+          message.style.color = 'red';
+          message.textContent = err.message || '提交失败';
+        }
+      });
+
+      // 页面加载后获取列表
+      fetchList();
+    </script>
+  </body>
+</html>
