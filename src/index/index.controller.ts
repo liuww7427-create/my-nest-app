@@ -1,16 +1,16 @@
 import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
+import { IndexService } from './index.service';
 
 /**
  * 路由（接收请求） Nestde IoC / DI
  */
 @Controller()
-export class AppController {
-  constructor(private readonly appService: AppService) {}
+export class IndexController {
+  constructor(private readonly indexService: IndexService) {}
 
   @Get()
   getHello(): string {
-    return this.appService.getHello();
+    return this.indexService.getHello();
   }
 
   @Get('Hi')
